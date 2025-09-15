@@ -1,2 +1,2 @@
-# wiiBackupCliTools
+# WiiBackupCliTools
 A simple pair of tools to make conversion of backed up (Zipped RVZ/ISO) Wii and Gamecube games ready for use on real hardware via a USB Loader A little easier...
