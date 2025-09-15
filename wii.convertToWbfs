@@ -133,8 +133,8 @@ def Main():
             else:
                 print(f"{convertedGames[0]} was converted successfully")
 
-            DelExtensionPrompt("rvz")
             DelExtensionPrompt("iso")
+            DelExtensionPrompt("rvz")
             DelExtensionPrompt("zip")
 
 

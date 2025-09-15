@@ -102,7 +102,7 @@ def SplitISO(fullFilename: str) -> int:
     global convertedGames
     
     filename = fullFilename.split(".full.iso")[0]
-    PrintSection(f"- Converting {fullFilename} to ISO format ...")
+    PrintSection(f"- Converting {fullFilename} to CISO format ...")
     os.mkdir(filename)
     returnCode = subprocess.call(
         f"wit copy {escapeFilename(fullFilename)} --ciso {escapeFilename(filename)}/game.ciso --split --split-size 2048M",
@@ -201,8 +201,8 @@ def Main():
             else:
                 print(f"{convertedGames[0]} was converted successfully")
 
-            DelExtensionPrompt("rvz", True)
             DelExtensionPrompt("full.iso", True)
+            DelExtensionPrompt("rvz", True)
             DelExtensionPrompt("zip")
 
 
