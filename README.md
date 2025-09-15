@@ -52,8 +52,8 @@ sequenceDiagram
 
 
     # User Actions
-    WBFS File ->> USB Drive "games" Folder: Copy to USB Drive
-    Split WBFS Files ->> USB Drive "games" Folder: Copy to USB Drive
+    CISO File ->> USB Drive "games" Folder: Copy to USB Drive
+    Split CISO Files ->> USB Drive "games" Folder: Copy to USB Drive
 ```
 
 ## How start?
