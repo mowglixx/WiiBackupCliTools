@@ -1,0 +1,210 @@
+#! /usr/bin/env python3
+
+import os
+import subprocess
+from pathlib import Path
+from shlex import quote as escapeFilename
+
+# List of failed processing games
+zippedGames: list[str] = []
+rvzGames: list[str] = []
+isoGames: list[str] = []
+
+# list of successful conversions
+convertedGames: list[str] = []
+
+directory = escapeFilename(".")
+print(f"{directory=}")
+
+
+def PrintSuccess(returnCode: int):
+    """
+    Prints a success / error message depending on the return code
+
+    Args:
+        returnCode (int): The return code for a command that has been run
+    """
+    if returnCode == 0:
+        print("\t- OK!")
+    else:
+        print("\t- ERROR:", returnCode)
+    print(f"================================================================")
+
+
+def PrintSection(sectionName: str):
+    """
+    Formats the terminal at the beginning of each section
+
+    Args:
+        sectionName (str): The name of the task in this section
+    """
+    print("\n\n================================================================")
+    print(f"{sectionName}")
+    print("================================================================\n")
+
+
+def UnzipGame(fullFilename: str) -> int:
+    """
+    Unzips games into the current directory, if the game is
+    the only file then a directory won't be created
+
+    Args:
+        fullFilename (str): *full .zip filename*
+    """
+    
+    global directory
+    
+    PrintSection(f"- Unzipping {fullFilename}...")
+    returnCode = subprocess.call(
+        f'unzip "{directory}/{fullFilename}"', shell=True)
+    PrintSuccess(returnCode)
+    return returnCode
+
+
+def ConvertRVZToISO(fullFilename: str) -> int:
+    """
+    Converts RVZ to ISO using dolphin-emu-tools / dolphin tool
+    
+    Args:
+        returnCode (int): The return code for a command that has been run
+    Project URL: 
+        https://github.com/dolphin-emu/dolphin?tab=readme-ov-file#dolphintool-usage
+    Package Name: 
+        dolphin-emu-tool
+    Binary Name: 
+        dolphin-tool
+    """
+    
+    global directory
+    
+    filename = fullFilename.split(".rvz")[0]
+    PrintSection(f"- Converting {fullFilename} to ISO format ...")
+    returnCode = subprocess.call(
+        f'dolphin-tool convert -i "{directory}/{fullFilename}" -o "{directory}/{filename}.full.iso" -f iso -s',
+        shell=True,
+    )
+
+    PrintSuccess(returnCode)
+    return returnCode
+
+
+def SplitISO(fullFilename: str) -> int:
+    """
+    Converts all iso format games to split ciso format in the current directory using wiimms ISO tools
+
+    Args:
+        returnCode (int): The return code for a command that has been run
+
+    Project URL: 
+        https://wit.wiimm.de/wit/
+    """
+    
+    global convertedGames
+    
+    filename = fullFilename.split(".full.iso")[0]
+    PrintSection(f"- Converting {fullFilename} to ISO format ...")
+    os.mkdir(filename)
+    returnCode = subprocess.call(
+        f"wit copy {escapeFilename(fullFilename)} --ciso {escapeFilename(filename)}/game.ciso --split --split-size 2048M",
+        shell=True,
+    )
+    if (returnCode == 0):
+        convertedGames.append(filename)
+    PrintSuccess(returnCode)
+    return returnCode
+
+
+def DelExtensionPrompt(filenameExtension: str, autoDelete: bool = False):
+    """
+    If there are matching files, prompts the user if they'd like,
+    to remove any of the remaining files of the same extension i.e. filenameExtension="rvz"
+    """
+    global directory
+    
+    filenameExtension = filenameExtension.lower()
+    files = [
+        os.fsdecode(file)
+        for file in os.listdir(directory)
+        if os.fsdecode(file).endswith(f".{filenameExtension}")
+    ]
+    count = len(files)
+    if count > 0:
+        PrintSection(
+            f"There are {filenameExtension.upper()} files leftover in the current directory"
+        )
+        print("Files in question:")
+        for file in files:
+            print(f"- {file}")
+        print(
+            f"Would you like to remove these {filenameExtension.upper()} format files?"
+        )
+        delChoice = ""
+        if(autoDelete != True):
+            delChoice = input("(Y/N): ")
+        if (delChoice.lower() == "y" or autoDelete):
+            for file in files:
+                os.remove(file)
+                print(f"\t- Deleted '{file}'")
+    PrintSuccess(0)
+
+
+def Main():
+    
+    global zippedGames
+    global rvzGames
+    global isoGames
+    global convertedGames
+    global directory
+    
+    # Unzip all the zips
+    for file in os.listdir(directory):
+        zipFilenameWithExtension = os.fsdecode(file)
+        if zipFilenameWithExtension.endswith(".zip"):
+            zipResult = UnzipGame(zipFilenameWithExtension)
+            if zipResult != 0:
+                zippedGames.append(f"{zipFilenameWithExtension}")
+
+    # convert all rvz files
+    for file in os.listdir(directory):
+        rvzFilenameWithExtension = os.fsdecode(file)
+        if rvzFilenameWithExtension.endswith(".rvz"):
+            rvzResult = ConvertRVZToISO(rvzFilenameWithExtension)
+            if rvzResult != 0:
+                rvzGames.append(rvzFilenameWithExtension)
+
+    for file in os.listdir(directory):
+        fullISOFilenameWithExtension = os.fsdecode(file)
+        if fullISOFilenameWithExtension.endswith(".full.iso"):
+            fullISOResult = SplitISO(fullISOFilenameWithExtension)
+            if fullISOResult != 0:
+                rvzGames.append(fullISOFilenameWithExtension)
+            else:
+                convertedGames.append(
+                    fullISOFilenameWithExtension.split(".full.iso")[0])
+
+    # Establish Errors and print if any
+    numberOfProblems = len(zippedGames) + len(rvzGames) + len(isoGames)
+    if numberOfProblems > 0:
+        problemFiles = [*zippedGames, *rvzGames, *isoGames]
+        print(
+            f"There was {numberOfProblems} problem(s) with the conversion process")
+        print("Problem:")
+        for problem in problemFiles:
+            print(f"- {problem}")
+    else:
+        print("There were no problems with the conversion process 👌")
+        if len(convertedGames) > 0:
+            if len(convertedGames) > 1:
+                print(f"The following games were converted successfully")
+                for game in convertedGames:
+                    print(f"- {game}")
+            else:
+                print(f"{convertedGames[0]} was converted successfully")
+
+            DelExtensionPrompt("rvz", True)
+            DelExtensionPrompt("full.iso", True)
+            DelExtensionPrompt("zip")
+
+
+if __name__ == "__main__":
+    Main()
